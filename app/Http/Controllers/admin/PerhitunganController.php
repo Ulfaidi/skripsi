@@ -98,7 +98,7 @@ class PerhitunganController extends Controller
         $tahun_list = Penilaian::select('tahun')
             ->selectRaw('COUNT(DISTINCT jembatan_kode) as jumlah_jembatan')
             ->groupBy('tahun')
-            ->having('jumlah_jembatan', '>=', 3)
+            ->having('jumlah_jembatan', '>=', 2)
             ->orderBy('tahun', 'desc')
             ->pluck('tahun');
 
@@ -120,10 +120,13 @@ class PerhitunganController extends Controller
 
     public function simpan(Request $request)
     {
-        try {
-            $tahun = $request->tahun;
+        $tahun = $request->tahun;
 
-            // Ambil data jembatan yang memiliki penilaian
+        try {
+            $request->validate([
+                'tahun' => 'required|digits:4|integer',
+            ]);
+
             $jembatan_kodes = Penilaian::filterTahun($tahun)
                 ->select('jembatan_kode')
                 ->distinct()
@@ -132,30 +135,35 @@ class PerhitunganController extends Controller
             $jembatan = Jembatan::whereIn('kode_jembatan', $jembatan_kodes)->get();
             $komponen = Komponen::all();
 
-            // Ambil nilai dalam bentuk matriks
             $nilai = [];
             foreach ($jembatan as $j) {
                 $nilai[$j->id] = [];
                 foreach ($komponen as $k) {
-                    $nilai[$j->id][$k->id] = (int)Penilaian::where('jembatan_kode', $j->kode_jembatan)
+                    $nilaiPenilaian = Penilaian::where('jembatan_kode', $j->kode_jembatan)
                         ->where('komponen_kode', $k->kode_komponen)
                         ->filterTahun($tahun)
-                        ->value('nilai') ?? 0;
+                        ->value('nilai');
+
+                    $nilai[$j->id][$k->id] = $nilaiPenilaian !== null ? (int)$nilaiPenilaian : 0;
                 }
             }
 
-            // Perhitungan TOPSIS
-            $jumlah_komponen = $komponen->count();
-            $jumlah_jembatan = $jembatan->count();
+            if ($jembatan->isEmpty() || $komponen->isEmpty()) {
+                Alert::error('Error', 'Data jembatan atau komponen tidak ditemukan untuk tahun ' . $tahun);
+                return redirect()->back();
+            }
 
             // Normalisasi Matriks
             $norm_matrix = [];
             foreach ($komponen as $k) {
-                $sum_square = array_sum(array_map(fn($v) => pow($v[$k->id], 2), $nilai));
+                $sum_square = 0;
+                foreach ($nilai as $j_id => $vals) {
+                    $sum_square += pow($vals[$k->id], 2);
+                }
                 $sqrt_sum = sqrt($sum_square);
 
                 foreach ($jembatan as $j) {
-                    $norm_matrix[$j->id][$k->id] = ($sqrt_sum == 0) ? 0 : $nilai[$j->id][$k->id] / $sqrt_sum;
+                    $norm_matrix[$j->id][$k->id] = $sqrt_sum == 0 ? 0 : $nilai[$j->id][$k->id] / $sqrt_sum;
                 }
             }
 
@@ -170,16 +178,16 @@ class PerhitunganController extends Controller
                 }
             }
 
-            // Solusi Ideal Positif dan Negatif
+            // Solusi ideal positif & negatif
             $A_pos = [];
             $A_neg = [];
             foreach ($komponen as $k) {
                 $column_values = array_column($weighted_matrix, $k->id);
-                $A_pos[$k->id] = !empty($column_values) ? ($k->tipe == 'benefit' ? max($column_values) : min($column_values)) : 0;
-                $A_neg[$k->id] = !empty($column_values) ? ($k->tipe == 'benefit' ? min($column_values) : max($column_values)) : 0;
+                $A_pos[$k->id] = ($k->tipe == 'benefit') ? max($column_values) : min($column_values);
+                $A_neg[$k->id] = ($k->tipe == 'benefit') ? min($column_values) : max($column_values);
             }
 
-            // Menghitung Jarak ke Solusi Ideal
+            // Jarak ke solusi ideal
             $D_pos = [];
             $D_neg = [];
             foreach ($jembatan as $j) {
@@ -187,32 +195,28 @@ class PerhitunganController extends Controller
                 $D_neg[$j->id] = sqrt(array_sum(array_map(fn($x, $a) => pow($x - $a, 2), $weighted_matrix[$j->id], $A_neg)));
             }
 
-            // Menghitung Skor Preferensi
+            // Skor preferensi
             $P = [];
             foreach ($jembatan as $j) {
-                $P[$j->id] = ($D_pos[$j->id] + $D_neg[$j->id]) == 0 ? 0 : $D_neg[$j->id] / ($D_pos[$j->id] + $D_neg[$j->id]);
+                $denominator = $D_pos[$j->id] + $D_neg[$j->id];
+                $P[$j->id] = $denominator == 0 ? 0 : $D_neg[$j->id] / $denominator;
             }
 
-            // Menyusun Peringkat Jembatan
             arsort($P);
-            $ranking = [];
-            foreach ($P as $id => $score) {
-                $ranking[Jembatan::find($id)->nama_jembatan] = $score;
-            }
 
-            // Hapus data laporan yang sudah ada untuk tahun ini
+            // Hapus data lama
             Laporan::where('tahun', $tahun)->delete();
 
-            // Simpan data ke tabel laporan
-            foreach ($ranking as $nama_jembatan => $skor) {
-                $jembatan = Jembatan::where('nama_jembatan', $nama_jembatan)->first();
-                if ($jembatan) {
+            // Simpan data baru
+            foreach ($P as $jembatan_id => $skor) {
+                $jembatanItem = $jembatan->firstWhere('id', $jembatan_id);
+                if ($jembatanItem) {
                     Laporan::create([
-                        'nama_jembatan' => $nama_jembatan,
-                        'kecamatan' => $jembatan->kecamatan->nama_kecamatan,
-                        'desa' => $jembatan->desa->nama_desa,
+                        'nama_jembatan' => $jembatanItem->nama_jembatan,
+                        'desa_satu' => $jembatanItem->desa_satu->nama_desa,
+                        'desa_dua' => $jembatanItem->desa_dua->nama_desa,
                         'preferensi' => $skor,
-                        'tahun' => $tahun
+                        'tahun' => $tahun,
                     ]);
                 }
             }

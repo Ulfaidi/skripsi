@@ -13,8 +13,8 @@ class Laporan extends Model
 
     protected $fillable = [
         'nama_jembatan',
-        'kecamatan',
-        'desa',
+        'desa_satu',
+        'desa_dua',
         'preferensi',
         'tahun'
     ];

@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::create('laporan', function (Blueprint $table) {
             $table->id();
             $table->string('nama_jembatan');
-            $table->string('kecamatan');
-            $table->string('desa');
+            $table->string('desa_satu');
+            $table->string('desa_dua');
             $table->string('preferensi');
             $table->integer('tahun');
             $table->timestamps();

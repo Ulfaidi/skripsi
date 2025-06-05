@@ -30,8 +30,7 @@
                                 <tr>
                                     <th>No</th>
                                     <th>Nama Jembatan</th>
-                                    <th>Kecamatan</th>
-                                    <th>Desa</th>
+                                    <th>Lokasi</th>
                                     <th>Skor</th>
                                     <th>Prioritas</th>
                                 </tr>
@@ -41,8 +40,13 @@
                                     <tr>
                                         <td>{{ $key + 1 }}</td>
                                         <td>{{ $l->nama_jembatan }}</td>
-                                        <td>{{ $l->kecamatan }}</td>
-                                        <td>{{ $l->desa }}</td>
+                                        <td>
+                                            <small>
+                                                {{ $l->desa_satu }}
+                                                -
+                                                {{ $l->desa_dua }}
+                                            </small>
+                                        </td>
                                         <td class="text-center">
                                             {{ preg_replace('/^(\d+),0+$/', '$1', preg_replace('/,?0+$/', '', number_format(1 - $l->preferensi, 4, ',', '.'))) }}
                                         </td>

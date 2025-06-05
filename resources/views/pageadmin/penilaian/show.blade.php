@@ -51,14 +51,16 @@
                                     @endphp
                                     @foreach ($groupedPenilaian as $jembatanKode => $tahunGroup)
                                         @foreach ($tahunGroup as $tahun => $penilaianGroup)
+                                            @php
+                                                $firstPenilaian = $penilaianGroup->first();
+                                                $jembatanNama = $firstPenilaian?->jembatan?->nama_jembatan ?? '-';
+                                            @endphp
                                             <tr>
-                                                <td>{{ $penilaianGroup->first()->jembatan->nama_jembatan }}</td>
+                                                <td>{{ $jembatanNama }}</td>
                                                 <td class="text-center">{{ $tahun }}</td>
                                                 @foreach ($komponen as $k)
                                                     @php
-                                                        $nilai = $penilaianGroup
-                                                            ->where('komponen_kode', $k->kode_komponen)
-                                                            ->first();
+                                                        $nilai = $penilaianGroup->where('komponen_kode', $k->kode_komponen)->first();
                                                     @endphp
                                                     <td class="text-center">{{ $nilai ? $nilai->nilai : '-' }}</td>
                                                 @endforeach
@@ -67,14 +69,14 @@
                                                         <button type="button"
                                                             class="btn btn-outline-warning btn-sm edit-btn"
                                                             data-bs-toggle="modal" data-bs-target="#editPenilaianModal"
-                                                            data-jembatan-kode="{{ $penilaianGroup->first()->jembatan_kode }}"
+                                                            data-jembatan-kode="{{ $firstPenilaian->jembatan_kode ?? '' }}"
                                                             data-tahun="{{ $tahun }}"
-                                                            data-nilai='@json($penilaianGroup->pluck('nilai', 'komponen_kode'))' title="Edit">
+                                                            data-nilai='@json($penilaianGroup->pluck("nilai", "komponen_kode"))' title="Edit">
                                                             <i class="bx bx-edit"></i>
                                                         </button>
                                                         <button type="button"
                                                             class="btn btn-outline-danger btn-sm delete-btn"
-                                                            data-jembatan-kode="{{ $penilaianGroup->first()->jembatan_kode }}"
+                                                            data-jembatan-kode="{{ $firstPenilaian->jembatan_kode ?? '' }}"
                                                             data-tahun="{{ $tahun }}" title="Hapus">
                                                             <i class="bx bx-trash"></i>
                                                         </button>
@@ -84,6 +86,7 @@
                                         @endforeach
                                     @endforeach
                                 </tbody>
+                                
                             </table>
                         </div>
                     </div>

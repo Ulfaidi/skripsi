@@ -47,11 +47,11 @@
                                             <td>{{ $jembatan->nama_jembatan }}</td>
                                             <td>
                                                 <small>
-                                                    {{ $jembatan->kecamatan_satu->nama_kecamatan }}(
-                                                    {{ $jembatan->desa_satu->nama_desa }})
+                                                    {{-- {{ $jembatan->kecamatan_satu->nama_kecamatan }} --}}
+                                                    {{ $jembatan->desa_satu->nama_desa }}
                                                     -
-                                                    {{ $jembatan->kecamatan_dua->nama_kecamatan }}(
-                                                    {{ $jembatan->desa_dua->nama_desa }})
+                                                    {{-- {{ $jembatan->kecamatan_dua->nama_kecamatan }} --}}
+                                                    {{ $jembatan->desa_dua->nama_desa }}
                                                 </small>
                                             </td>
                                             <td class="text-center">{{ $jembatan->tahun_pembangunan }}</td>
