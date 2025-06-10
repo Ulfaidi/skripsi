@@ -88,7 +88,8 @@
                                                         method="POST" style="display:inline;" class="delete-form">
                                                         @csrf
                                                         @method('DELETE')
-                                                        <button type="submit" class="btn btn-sm btn-danger">
+                                                        <button type="submit"
+                                                            class="btn btn-outline-danger btn-sm edit-btn">
                                                             <i class="bx bx-trash"></i>
                                                         </button>
                                                     </form>
